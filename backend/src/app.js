@@ -3,6 +3,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
 import { health } from './routes/health.js';
+import { pairing } from './security/pairing.js';
+import { requireDevice } from './security/auth.js';
+import { device } from './routes/device.js';
 
 export function createApp() {
   const app = express();
@@ -14,7 +17,11 @@ export function createApp() {
   app.use(express.json({ limit: '100kb' }));
 
   app.use(health);
-  // Step 1.2: pairing + auth middleware go here; every route below it needs a device token.
+  app.use(pairing);
+
+  // ---- Everything below needs a paired device token ----
+  app.use(requireDevice);
+  app.use(device);
 
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 

@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createApp } from '../src/app.js';
+import { mkdtemp } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+process.env.DATA_DIR = await mkdtemp(path.join(os.tmpdir(), 'jarvis-test-'));
+const { createApp } = await import('../src/app.js');
 
 async function withServer(fn) {
   const server = createApp().listen(0, '127.0.0.1');
@@ -15,9 +20,9 @@ test('GET /health returns ok', () => withServer(async (base) => {
   assert.deepEqual(await res.json(), { status: 'ok' });
 }));
 
-test('unknown route returns 404 json, no x-powered-by', () => withServer(async (base) => {
+test('unknown route without token is 401 (hides which routes exist), no x-powered-by', () => withServer(async (base) => {
   const res = await fetch(`${base}/nope`);
-  assert.equal(res.status, 404);
+  assert.equal(res.status, 401);
   assert.equal(res.headers.get('x-powered-by'), null);
 }));
 

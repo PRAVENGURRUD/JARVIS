@@ -16,6 +16,8 @@ export const config = Object.freeze({
   port: int('PORT', 3000),
   dataDir: process.env.DATA_DIR || fileURLToPath(new URL('../data/', import.meta.url)),
   rateLimitPerMin: int('RATE_LIMIT_PER_MIN', 60),
-  // Used from step 1.2 / 1.3 onward:
+  // Your Tailscale HTTPS address, put inside the pairing QR (e.g. https://my-pc.tailXXXX.ts.net)
+  publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
+  // Used from step 1.3 onward:
   geminiApiKey: process.env.GEMINI_API_KEY || '',
 });

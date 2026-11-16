@@ -3,7 +3,7 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — step 1.1 done** (backend skeleton: Express, `/health`, helmet, rate limit, action log, tests). Step 1.0 (Flutter SDK install on Windows) in progress on Praveen's side.
+**Phase 1 — steps 1.1 and 1.2 (backend half) done.** Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). 7 tests pass. Step 1.0 (Flutter SDK on Windows, Tailscale) in progress on Praveen's side. App half of 1.2 (scan QR, store token in Keystore) waits for Flutter.
 
 ## Phases
 - [ ] **Phase 1** — Wake word, background service, Tanglish voice chat ← *current*
@@ -19,6 +19,7 @@ Updated by Claude at the end of every session. Newest session at the top.
 - 2026-11-16: Reply voice = **Gemini TTS**, automatic fallback to Android built-in TTS when offline or quota is used up.
 - 2026-11-16: App ID = `com.praveen.jarvis`.
 - 2026-11-16: PC already has Node.js and Android Studio; Flutter SDK still to install.
+- 2026-11-16: Pairing = QR with `{v, url, code}` from `npm run pair`; app sends code to `POST /pair`, gets a device token once; app sends `Authorization: Bearer <token>` on every call.
 
 ## Open questions (need Praveen)
 - Gemini API key: Praveen creates it in Google AI Studio and puts it only in `backend/.env` (needed at step 1.3).
@@ -27,7 +28,7 @@ Updated by Claude at the end of every session. Newest session at the top.
 - Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
 
 ## Next step
-Finish step 1.0 (Flutter SDK, `flutter doctor`, USB debugging, Tailscale on PC + phone) → step 1.2 (pairing + device-token auth).
+Finish step 1.0 (Flutter SDK, `flutter doctor`, USB debugging, Tailscale on PC + phone, set `PUBLIC_URL` in `backend/.env`) → create Flutter app skeleton + pairing screen (app half of 1.2) → step 1.3 (brain).
 
 ---
 
@@ -38,3 +39,4 @@ Finish step 1.0 (Flutter SDK, `flutter doctor`, USB debugging, Tailscale on PC +
 - Created `CLAUDE.md`, `PROGRESS.md`, `.gitignore`, `docs/PHASE1_PLAN.md`; Praveen pushed to GitHub.
 - Decisions: PC + Tailscale backend, Gemini TTS, app ID.
 - Step 1.1: backend skeleton in `backend/` — `npm test` passes (3 tests).
+- Step 1.2 backend: pairing codes are single-use, 5-min, max 5 wrong tries, max 3 devices; only SHA-256 hashes of codes/tokens stored; unknown routes return 401 to hide what exists.
