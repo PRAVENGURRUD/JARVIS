@@ -6,8 +6,10 @@ import { health } from './routes/health.js';
 import { pairing } from './security/pairing.js';
 import { requireDevice } from './security/auth.js';
 import { device } from './routes/device.js';
+import { chatRoutes } from './routes/chat.js';
+import { createBrain } from './brain/gemini.js';
 
-export function createApp() {
+export function createApp({ brain = createBrain() } = {}) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -22,6 +24,7 @@ export function createApp() {
   // ---- Everything below needs a paired device token ----
   app.use(requireDevice);
   app.use(device);
+  app.use(chatRoutes(brain));
 
   app.use((_req, res) => res.status(404).json({ error: 'not_found' }));
 

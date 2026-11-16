@@ -18,6 +18,11 @@ export const config = Object.freeze({
   rateLimitPerMin: int('RATE_LIMIT_PER_MIN', 60),
   // Your Tailscale HTTPS address, put inside the pairing QR (e.g. https://my-pc.tailXXXX.ts.net)
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
-  // Used from step 1.3 onward:
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  // Free-tier model IDs (check https://ai.google.dev/gemini-api/docs/pricing — they change often).
+  models: Object.freeze({
+    small: process.env.GEMINI_MODEL_SMALL || 'gemini-3.5-flash-lite',
+    strong: process.env.GEMINI_MODEL_STRONG || 'gemini-3.8-flash',
+    tts: process.env.GEMINI_MODEL_TTS || 'gemini-3.8-flash-lite-tts',
+  }),
 });
