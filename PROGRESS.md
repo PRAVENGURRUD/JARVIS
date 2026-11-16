@@ -3,10 +3,13 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — steps 1.0–1.3 DONE and working on the real S24+** (2026-11-16): phone paired over Tailscale (`https://pravengurru.taile513f9.ts.net`), text chat with real Gemini replies in Tanglish. Step 1.4 (voice) code written 2026-11-16, waiting for first phone test. Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). `POST /chat` (text in → `{display, speech, lang}` out) with model router + quota fallback; `npm run chat` to test from the terminal. 15 tests pass (Gemini faked in tests). Brain retries a failed model once, then falls back to the other model. Flutter app in `app/` (Flutter 3.50, package `com.praveen.jarvis`): QR pairing screen (mobile_scanner), token in Keystore (flutter_secure_storage), text chat screen; only accepts `https://*.ts.net` backend URLs. 3 app tests pass.
+**Phase 1 — steps 1.0–1.4 working on the real S24+ (2026-11-16).**
+- Text chat + **voice chat** (tap 🎤, speak English/Tamil/Tanglish, tap ■) through the private Tailscale tunnel (`https://pravengurru.taile513f9.ts.net`) to the backend on the PC → Gemini understands the audio and replies in Tanglish; reply spoken aloud. Voice replies take ~3–10 s.
+- Spoken voice is the phone's **Android TTS** (female, robotic) because **Gemini TTS returns "model not found" for Praveen's key** (tried gemini-3.8-flash-lite-tts, gemini-3.8-flash-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts + models.list). Backend switches TTS off for 30 min after a full failure so replies stay fast.
+- Backend: 23 tests pass. App: `flutter analyze` clean, 4 tests pass (before the last small edits — re-run).
 
 ## Phases
-- [ ] **Phase 1** (1.0–1.3 done, 1.4 in test) — Wake word, background service, Tanglish voice chat ← *current*
+- [ ] **Phase 1** (1.0–1.4 done; next: voice choice, then 1.5 background service) — Wake word, background service, Tanglish voice chat ← *current*
 - [ ] Phase 2 — Calls: answer, speaker, hang-up fallback, busy mode, transcripts
 - [ ] Phase 3 — Alarms, calendar, messages, LinkedIn, phone control
 - [ ] Phase 4 — Browser booking, smart home, briefings, extras
@@ -33,7 +36,13 @@ Updated by Claude at the end of every session. Newest session at the top.
 - Windows console can't render Tamil script — `npm run chat` shows garbled (voice: ...) lines; phone shows it fine.
 - Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
 
-## Next step
+## Next step (start here tomorrow)
+1. Run `npm run models` in `backend/` → see if the key has ANY TTS model. If yes, set `GEMINI_MODEL_TTS` in `.env`.
+2. Option A (Praveen to choose): add a voice picker in the app (flutter_tts `getVoices` → pick a male en-IN / ta-IN voice, save choice).
+3. Voice replies mostly came from the SMALL model (gemini-3.5-flash-lite) — the strong model (gemini-3.8-flash) failed or was too slow; one reply just echoed the question. Check backend console `[brain]` lines and the free-tier limits for 3.8-flash; consider `thinkingLevel: MINIMAL`.
+4. Then step 1.5: Kotlin foreground service + Samsung battery setup screen, then 1.6 wake word "Hey JARVIS".
+
+Old next-step notes:
 Step 1.4: push-to-talk in the app (record audio → backend → Gemini understands audio) + speak replies with Gemini TTS (`gemini-3.8-flash-lite-tts`), Android TTS fallback.
 
 How to run (see `scripts/`): `scripts\start-jarvis.ps1` (backend + QR + `flutter run`; `-NoPair` once paired), `scripts\chat.ps1` (terminal brain test), `scripts\setup-pc.ps1` (one-time Tailscale + .env).
@@ -41,6 +50,11 @@ How to run (see `scripts/`): `scripts\start-jarvis.ps1` (backend + QR + `flutter
 ---
 
 ## Session log
+
+### 2026-11-16 — end of day 1
+- Voice tested on phone: audio levels healthy (peak 42–95 %), Gemini transcribes Tanglish correctly ("Tamil puriyuma machi thirupi reply panra").
+- Fixes today: hold-to-talk → tap-to-talk; "(not clear)" label was shown for ANY error → now "(not sent — PC not reachable)" vs "(JARVIS could not hear it clearly)"; loudness check (numbers only) + silent-recording guard; TTS model discovery + 30-min off switch; Gemini `thinkingLevel: LOW`; per-reply timing in action log; phone voice timeout 90 s; TTS capped at 20 s.
+- Daily use: `scripts\start-jarvis.ps1 -NoPair -NoApp` (backend only), keep the backend window open, Tailscale connected on both devices. USB only needed to install new app versions (`flutter run`).
 
 ### 2026-11-16 — Step 1.4 first phone test
 - `gemini-3.8-flash-lite-tts` returned 404 for Praveen's key → TTS now tries the configured model, then known names, then whatever `models.list()` offers (`npm run models` lists them), and remembers the working one.
