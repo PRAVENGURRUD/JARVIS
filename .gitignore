@@ -34,3 +34,6 @@ Thumbs.db
 data/
 *.transcript
 *.log
+
+# Claude hand-off files (patches, archives)
+_to_delete/
