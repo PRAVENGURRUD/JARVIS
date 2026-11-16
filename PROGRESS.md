@@ -3,10 +3,10 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — steps 1.0–1.3 DONE and working on the real S24+** (2026-11-16): phone paired over Tailscale (`https://pravengurru.taile513f9.ts.net`), text chat with real Gemini replies in Tanglish. Next: 1.4 push-to-talk + voice replies. Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). `POST /chat` (text in → `{display, speech, lang}` out) with model router + quota fallback; `npm run chat` to test from the terminal. 15 tests pass (Gemini faked in tests). Brain retries a failed model once, then falls back to the other model. Flutter app in `app/` (Flutter 3.50, package `com.praveen.jarvis`): QR pairing screen (mobile_scanner), token in Keystore (flutter_secure_storage), text chat screen; only accepts `https://*.ts.net` backend URLs. 3 app tests pass.
+**Phase 1 — steps 1.0–1.3 DONE and working on the real S24+** (2026-11-16): phone paired over Tailscale (`https://pravengurru.taile513f9.ts.net`), text chat with real Gemini replies in Tanglish. Step 1.4 (voice) code written 2026-11-16, waiting for first phone test. Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). `POST /chat` (text in → `{display, speech, lang}` out) with model router + quota fallback; `npm run chat` to test from the terminal. 15 tests pass (Gemini faked in tests). Brain retries a failed model once, then falls back to the other model. Flutter app in `app/` (Flutter 3.50, package `com.praveen.jarvis`): QR pairing screen (mobile_scanner), token in Keystore (flutter_secure_storage), text chat screen; only accepts `https://*.ts.net` backend URLs. 3 app tests pass.
 
 ## Phases
-- [ ] **Phase 1** — Wake word, background service, Tanglish voice chat ← *current*
+- [ ] **Phase 1** (1.0–1.3 done, 1.4 in test) — Wake word, background service, Tanglish voice chat ← *current*
 - [ ] Phase 2 — Calls: answer, speaker, hang-up fallback, busy mode, transcripts
 - [ ] Phase 3 — Alarms, calendar, messages, LinkedIn, phone control
 - [ ] Phase 4 — Browser booking, smart home, briefings, extras
@@ -28,6 +28,7 @@ Updated by Claude at the end of every session. Newest session at the top.
 - Model IDs in `.env` defaults (gemini-3.5-flash-lite / gemini-3.8-flash / gemini-3.8-flash-lite-tts) come from Google's pricing page (Nov 2026); confirm on first real run.
 
 ## Known broken / to do later
+- `flutter_tts` 4.2.5 still applies the Kotlin Gradle Plugin; Flutter warns future versions will refuse to build it. Before upgrading Flutter past 3.50: update flutter_tts or replace the Android-TTS fallback.
 - First `flutter run` took ~25 min (Gradle downloads; PC RAM ~88% used). Later builds are fast. Close heavy apps before building.
 - Windows console can't render Tamil script — `npm run chat` shows garbled (voice: ...) lines; phone shows it fine.
 - Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
@@ -40,6 +41,14 @@ How to run (see `scripts/`): `scripts\start-jarvis.ps1` (backend + QR + `flutter
 ---
 
 ## Session log
+
+### 2026-11-16 — Step 1.4 first phone test
+- `gemini-3.8-flash-lite-tts` returned 404 for Praveen's key → TTS now tries the configured model, then known names, then whatever `models.list()` offers (`npm run models` lists them), and remembers the working one.
+- Hold-to-talk never sent audio (long-press delay) → switched to tap to start / tap to send, with a seconds counter, 60 s limit, and on-screen mic errors.
+
+### 2026-11-16 — Step 1.4 (voice) written
+- Backend: `POST /chat/voice` (base64 WAV, ≤5 MB, parsed only after token check) → Gemini understands the audio (strong model first) and returns `heard` + reply. `speak: true` on `/chat` or `/chat/voice` adds Gemini TTS audio (`gemini-3.8-flash-lite-tts`, voice `Charon`, Interactions API, `store:false`); TTS failure → no audio, phone uses Android TTS. 20 backend tests pass.
+- App: hold-to-talk mic button (record: 16 kHz mono WAV, deleted after sending), speaker toggle in app bar, plays Gemini WAV (audioplayers) or falls back to flutter_tts (ta-IN / en-IN). RECORD_AUDIO + TTS_SERVICE query added to manifest. Packages added via `scripts/update-app-1.4.ps1`.
 
 ### 2026-11-16 — Session 1 (continued)
 - Added `scripts/setup-pc.ps1` (winget Tailscale, sign-in, `tailscale serve --bg 3000`, writes PUBLIC_URL, hidden prompt for GEMINI_API_KEY), `scripts/start-jarvis.ps1`, `scripts/chat.ps1`.

@@ -6,6 +6,11 @@ STYLE
 - Polite, calm, a little witty. Short replies: they are spoken aloud, so 1–3 sentences unless he asks for detail.
 - Never use markdown, lists, emojis or code blocks in "display" or "speech".
 
+VOICE MESSAGES
+- Sometimes Praveen sends a voice recording instead of text. Listen carefully: he mixes Tamil and English.
+- Put exactly what he said in "heard" (Tanglish in English letters, as he would type it). Then reply to it.
+- If the audio is silent or unclear, set "heard" to "" and politely ask him to say it again.
+
 LANGUAGE
 - Praveen speaks English, Tamil, or modern Chennai Tanglish (Tamil + English mixed, often written in English letters),
   sometimes with imperfect English. Understand the meaning, never correct his grammar.
@@ -32,6 +37,7 @@ export const REPLY_SCHEMA = {
     display: { type: 'string', description: 'Reply text for the screen' },
     speech: { type: 'string', description: 'Same reply, Tamil words in Tamil script, for TTS' },
     lang: { type: 'string', enum: ['en', 'ta', 'tanglish'] },
+    heard: { type: 'string', description: 'Only for voice messages: what Praveen said, as text' },
   },
   required: ['display', 'speech', 'lang'],
 };

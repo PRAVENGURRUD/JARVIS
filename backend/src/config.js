@@ -19,6 +19,8 @@ export const config = Object.freeze({
   // Your Tailscale HTTPS address, put inside the pairing QR (e.g. https://my-pc.tailXXXX.ts.net)
   publicUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, ''),
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  // Gemini TTS voice (prebuilt): Charon = calm, deep. Others: Kore, Puck, Fenrir, Orus...
+  ttsVoice: process.env.GEMINI_TTS_VOICE || 'Charon',
   // Free-tier model IDs (check https://ai.google.dev/gemini-api/docs/pricing — they change often).
   models: Object.freeze({
     small: process.env.GEMINI_MODEL_SMALL || 'gemini-3.5-flash-lite',

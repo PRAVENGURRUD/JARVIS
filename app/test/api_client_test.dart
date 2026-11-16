@@ -37,4 +37,25 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.failure, 'failure', ApiFailure.unauthorized)),
     );
   });
+
+  test('voiceChat sends base64 WAV and reads heard + audio', () async {
+    late Map<String, dynamic> sent;
+    final api = ApiClient(client: MockClient((req) async {
+      sent = jsonDecode(req.body) as Map<String, dynamic>;
+      expect(req.url.path, '/chat/voice');
+      return http.Response(
+        jsonEncode({
+          'heard': 'naalaiku exam',
+          'reply': {'display': 'All the best', 'speech': 'All the best', 'lang': 'en'},
+          'audio': {'mimeType': 'audio/wav', 'data': 'UklGRg=='},
+        }),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    }));
+    final r = await api.voiceChat(const Session('https://pc.tail1.ts.net', 'tok'), [1, 2, 3], const []);
+    expect((sent['audio'] as Map)['data'], base64Encode([1, 2, 3]));
+    expect(r.heard, 'naalaiku exam');
+    expect(r.audioWav, 'UklGRg==');
+  });
 }

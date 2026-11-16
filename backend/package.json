@@ -14,7 +14,8 @@
     "test": "node --test",
     "pair": "node scripts/pair.js",
     "devices": "node scripts/devices.js",
-    "chat": "node scripts/chat.js"
+    "chat": "node scripts/chat.js",
+    "models": "node scripts/models.js"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

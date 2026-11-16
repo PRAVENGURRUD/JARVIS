@@ -25,15 +25,19 @@ class ApiException implements Exception {
 }
 
 class JarvisReply {
-  const JarvisReply({required this.display, required this.speech, required this.lang});
-  factory JarvisReply.fromJson(Map<String, dynamic> j) => JarvisReply(
+  const JarvisReply({required this.display, required this.speech, required this.lang, this.audioWav, this.heard});
+  factory JarvisReply.fromJson(Map<String, dynamic> j, {Map<String, dynamic>? body}) => JarvisReply(
         display: j['display'] as String? ?? '',
         speech: j['speech'] as String? ?? '',
         lang: j['lang'] as String? ?? 'en',
+        audioWav: (body?['audio'] is Map) ? (body!['audio'] as Map)['data'] as String? : null,
+        heard: body?['heard'] as String?,
       );
   final String display;
-  final String speech;
+  final String speech; // Tamil words in Tamil script, for speaking
   final String lang;
+  final String? audioWav; // base64 WAV of Gemini's voice, if the PC made one
+  final String? heard; // voice messages: what JARVIS heard you say
 }
 
 class ChatTurn {
@@ -72,16 +76,34 @@ class ApiClient {
     return Session(baseUrl, body['token'] as String);
   }
 
-  Future<JarvisReply> chat(Session s, String text, List<ChatTurn> history) async {
-    final res = await _send(() => _http.post(
-          Uri.parse('${s.baseUrl}/chat'),
-          headers: {'content-type': 'application/json', 'authorization': 'Bearer ${s.token}'},
-          body: jsonEncode({'text': text, 'history': history.map((t) => t.toJson()).toList()}),
-        ));
+  Future<JarvisReply> chat(Session s, String text, List<ChatTurn> history, {bool speak = false}) =>
+      _post(s, '/chat', {'text': text, 'history': history.map((t) => t.toJson()).toList(), 'speak': speak});
+
+  /// Sends a WAV recording; the reply's [JarvisReply.heard] says what JARVIS understood.
+  Future<JarvisReply> voiceChat(Session s, List<int> wav, List<ChatTurn> history, {bool speak = true}) => _post(
+        s,
+        '/chat/voice',
+        {
+          'audio': {'mimeType': 'audio/wav', 'data': base64Encode(wav)},
+          'history': history.map((t) => t.toJson()).toList(),
+          'speak': speak,
+        },
+        timeout: const Duration(seconds: 90),
+      );
+
+  Future<JarvisReply> _post(Session s, String path, Map<String, dynamic> payload, {Duration timeout = _timeout}) async {
+    final res = await _send(
+      () => _http.post(
+        Uri.parse('${s.baseUrl}$path'),
+        headers: {'content-type': 'application/json', 'authorization': 'Bearer ${s.token}'},
+        body: jsonEncode(payload),
+      ),
+      timeout: timeout,
+    );
     final body = _decode(res.body);
     switch (res.statusCode) {
       case 200:
-        return JarvisReply.fromJson(body['reply'] as Map<String, dynamic>);
+        return JarvisReply.fromJson(body['reply'] as Map<String, dynamic>, body: body);
       case 401:
         throw ApiException(ApiFailure.unauthorized);
       case 429:
@@ -93,9 +115,9 @@ class ApiClient {
     }
   }
 
-  Future<http.Response> _send(Future<http.Response> Function() call) async {
+  Future<http.Response> _send(Future<http.Response> Function() call, {Duration timeout = _timeout}) async {
     try {
-      return await call().timeout(_timeout);
+      return await call().timeout(timeout);
     } on SocketException {
       throw ApiException(ApiFailure.pcOffline);
     } on TimeoutException {

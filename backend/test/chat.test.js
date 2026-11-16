@@ -106,3 +106,63 @@ test('model error on every attempt → model_error with status', async () => {
   const b = createBrain({ client: broken, models: { small: 's', strong: 't' }, retryDelayMs: 1 });
   await assert.rejects(b.chat({ text: 'hi' }), (e) => e.code === 'model_error' && e.status === 500);
 });
+
+// ---------- Step 1.4: voice + spoken replies ----------
+test('/chat with speak:true returns TTS audio; TTS failure just omits it', async () => {
+  const { createApp } = await import('../src/app.js');
+  const okTts = { async speak(t) { return { mimeType: 'audio/wav', data: Buffer.from('RIFF' + t).toString('base64') }; } };
+  const app2 = createApp({ brain, tts: okTts }).listen(0, '127.0.0.1');
+  await new Promise((r) => app2.once('listening', r));
+  const b2 = `http://127.0.0.1:${app2.address().port}`;
+  const h = { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+  let res = await fetch(`${b2}/chat`, { method: 'POST', headers: h, body: JSON.stringify({ text: 'hi', speak: true }) });
+  let body = await res.json();
+  assert.equal(body.audio.mimeType, 'audio/wav');
+  res = await fetch(`${b2}/chat`, { method: 'POST', headers: h, body: JSON.stringify({ text: 'hi' }) });
+  body = await res.json();
+  assert.equal(body.audio, undefined, 'no audio unless asked');
+  app2.close();
+});
+
+test('/chat/voice sends audio to the brain and returns what was heard', async () => {
+  const wav = Buffer.alloc(4000, 1).toString('base64');
+  const res = await fetch(`${base}/chat/voice`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ audio: { mimeType: 'audio/wav', data: wav }, speak: false }),
+  });
+  assert.equal(res.status, 200);
+  const last = calls.at(-1);
+  assert.equal(last.contents.at(-1).parts[0].inlineData.mimeType, 'audio/wav');
+  assert.equal(last.model, 'strong-model', 'voice uses the strong model first');
+  const body = await res.json();
+  assert.equal(typeof body.heard, 'string');
+});
+
+test('/chat/voice: rejects bad audio, and needs a token before reading the upload', async () => {
+  const h = { 'content-type': 'application/json', authorization: `Bearer ${token}` };
+  let res = await fetch(`${base}/chat/voice`, { method: 'POST', headers: h, body: JSON.stringify({ audio: { mimeType: 'video/mp4', data: 'A'.repeat(200) } }) });
+  assert.equal(res.status, 400);
+  res = await fetch(`${base}/chat/voice`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ audio: { mimeType: 'audio/wav', data: 'A'.repeat(200) } }) });
+  assert.equal(res.status, 401);
+  // A big body on a normal route is refused (100 kb limit).
+  res = await fetch(`${base}/chat`, { method: 'POST', headers: h, body: JSON.stringify({ text: 'x'.repeat(200_000) }) });
+  assert.ok(res.status === 413 || res.status === 400);
+});
+
+test('/chat/voice: a silent WAV is caught before calling Gemini', async () => {
+  const pcm = Buffer.alloc(32000); // 1 s of silence, 16 kHz mono 16-bit
+  const hdr = Buffer.alloc(44);
+  hdr.write('RIFF', 0); hdr.writeUInt32LE(36 + pcm.length, 4); hdr.write('WAVE', 8); hdr.write('fmt ', 12);
+  hdr.writeUInt32LE(16, 16); hdr.writeUInt16LE(1, 20); hdr.writeUInt16LE(1, 22); hdr.writeUInt32LE(16000, 24);
+  hdr.writeUInt32LE(32000, 28); hdr.writeUInt16LE(2, 32); hdr.writeUInt16LE(16, 34); hdr.write('data', 36); hdr.writeUInt32LE(pcm.length, 40);
+  const n = calls.length;
+  const res = await fetch(`${base}/chat/voice`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ audio: { mimeType: 'audio/wav', data: Buffer.concat([hdr, pcm]).toString('base64') } }),
+  });
+  assert.equal(res.status, 200);
+  assert.match((await res.json()).reply.display, /couldn't hear/);
+  assert.equal(calls.length, n, 'Gemini not called for silence');
+});
