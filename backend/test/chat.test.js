@@ -23,7 +23,7 @@ const fakeClient = {
     },
   },
 };
-const brain = createBrain({ client: fakeClient, models: { small: 'small-model', strong: 'strong-model' } });
+const brain = createBrain({ client: fakeClient, models: { small: 'small-model', strong: 'strong-model' }, retryDelayMs: 1 });
 
 let base, token;
 before(async () => {
@@ -86,4 +86,23 @@ test('quota on both models → 429 with a spoken fallback reply', async () => {
   assert.equal(body.error, 'quota_exceeded');
   assert.ok(body.reply.speech.length > 0);
   failWith = null;
+});
+
+test('brief model error: retries, then falls back to the other model', async () => {
+  let n = 0;
+  const flaky = { models: { async generateContent(req) {
+    n++;
+    if (req.model === 'small-model') throw Object.assign(new Error('UNAVAILABLE'), { status: 503 });
+    return { text: JSON.stringify({ display: 'ok', speech: 'ok', lang: 'en' }) };
+  } } };
+  const b = createBrain({ client: flaky, models: { small: 'small-model', strong: 'strong-model' }, retryDelayMs: 1 });
+  const r = await b.chat({ text: 'hi' });
+  assert.equal(r.model, 'strong-model');
+  assert.equal(n, 3); // small, small again, then strong
+});
+
+test('model error on every attempt → model_error with status', async () => {
+  const broken = { models: { async generateContent() { throw Object.assign(new Error('boom'), { status: 500 }); } } };
+  const b = createBrain({ client: broken, models: { small: 's', strong: 't' }, retryDelayMs: 1 });
+  await assert.rejects(b.chat({ text: 'hi' }), (e) => e.code === 'model_error' && e.status === 500);
 });

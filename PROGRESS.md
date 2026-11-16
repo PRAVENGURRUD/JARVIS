@@ -3,7 +3,7 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — steps 1.0, 1.1, 1.2 (backend + app code), 1.3 (brain) done; waiting on first real-device test (pairing over Tailscale + real Gemini).** Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). `POST /chat` (text in → `{display, speech, lang}` out) with model router + quota fallback; `npm run chat` to test from the terminal. 13 tests pass (Gemini faked in tests). Flutter app in `app/` (Flutter 3.50, package `com.praveen.jarvis`): QR pairing screen (mobile_scanner), token in Keystore (flutter_secure_storage), text chat screen; only accepts `https://*.ts.net` backend URLs. 3 app tests pass.
+**Phase 1 — steps 1.0–1.3 DONE and working on the real S24+** (2026-11-16): phone paired over Tailscale (`https://pravengurru.taile513f9.ts.net`), text chat with real Gemini replies in Tanglish. Next: 1.4 push-to-talk + voice replies. Backend has `/health`, one-time QR pairing (`npm run pair`), device-token auth on every other route, `/whoami`, `/actions`, `npm run devices` (list/revoke). `POST /chat` (text in → `{display, speech, lang}` out) with model router + quota fallback; `npm run chat` to test from the terminal. 15 tests pass (Gemini faked in tests). Brain retries a failed model once, then falls back to the other model. Flutter app in `app/` (Flutter 3.50, package `com.praveen.jarvis`): QR pairing screen (mobile_scanner), token in Keystore (flutter_secure_storage), text chat screen; only accepts `https://*.ts.net` backend URLs. 3 app tests pass.
 
 ## Phases
 - [ ] **Phase 1** — Wake word, background service, Tanglish voice chat ← *current*
@@ -28,14 +28,24 @@ Updated by Claude at the end of every session. Newest session at the top.
 - Model IDs in `.env` defaults (gemini-3.5-flash-lite / gemini-3.8-flash / gemini-3.8-flash-lite-tts) come from Google's pricing page (Nov 2026); confirm on first real run.
 
 ## Known broken / to do later
+- First `flutter run` took ~25 min (Gradle downloads; PC RAM ~88% used). Later builds are fast. Close heavy apps before building.
+- Windows console can't render Tamil script — `npm run chat` shows garbled (voice: ...) lines; phone shows it fine.
 - Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
 
 ## Next step
-→ Tailscale on PC + phone, `tailscale serve --bg 3000`, set `PUBLIC_URL` + `GEMINI_API_KEY` in `backend/.env` → `npm start`, `npm run pair`, `flutter run` on the S24+, scan, chat → 1.4 push-to-talk + TTS.
+Step 1.4: push-to-talk in the app (record audio → backend → Gemini understands audio) + speak replies with Gemini TTS (`gemini-3.8-flash-lite-tts`), Android TTS fallback.
+
+How to run (see `scripts/`): `scripts\start-jarvis.ps1` (backend + QR + `flutter run`; `-NoPair` once paired), `scripts\chat.ps1` (terminal brain test), `scripts\setup-pc.ps1` (one-time Tailscale + .env).
 
 ---
 
 ## Session log
+
+### 2026-11-16 — Session 1 (continued)
+- Added `scripts/setup-pc.ps1` (winget Tailscale, sign-in, `tailscale serve --bg 3000`, writes PUBLIC_URL, hidden prompt for GEMINI_API_KEY), `scripts/start-jarvis.ps1`, `scripts/chat.ps1`.
+- Tailscale: PC `pravengurru` + phone `pravens-s24` on the same tailnet; Serve + HTTPS enabled.
+- First real run: pairing worked, real Gemini (`gemini-3.5-flash-lite`) replied in Tanglish on the phone. One transient `model_error` → added retry + fallback and log Google's HTTP status (no content).
+- Claude can't type into terminals on the PC (safety rule) and can't push to GitHub (no GitHub App access) → Praveen runs commands/pushes.
 
 ### 2026-11-16 — Session 1
 - Read the master plan (`docs/JARVIS_Plan.pdf`), added it to the repo.

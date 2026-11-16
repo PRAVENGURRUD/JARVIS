@@ -5,9 +5,10 @@ import { PERSONA, REPLY_SCHEMA } from './persona.js';
 import { pickTier } from './router.js';
 
 export class BrainError extends Error {
-  constructor(code, message) {
+  constructor(code, message, status) {
     super(message);
     this.code = code; // 'not_configured' | 'quota_exceeded' | 'model_error'
+    this.status = status; // HTTP status from Google, if any (safe to log: no content)
   }
 }
 
@@ -30,10 +31,11 @@ function parseReply(raw) {
   return { display, speech, lang };
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const isQuota = (err) => err?.status === 429 || /RESOURCE_EXHAUSTED|quota|rate limit/i.test(err?.message ?? '');
 
 /** Creates the brain. `client` can be swapped for a fake in tests. */
-export function createBrain({ client, models = config.models } = {}) {
+export function createBrain({ client, models = config.models, retryDelayMs = 800 } = {}) {
   let ai = client;
 
   async function ask(model, contents) {
@@ -59,18 +61,25 @@ export function createBrain({ client, models = config.models } = {}) {
       const tier = pickTier(text);
       const order = tier === 'strong' ? [models.strong, models.small] : [models.small, models.strong];
       const contents = toContents(history, text);
+      // Try: first model, the same model once more after a short pause (brief Google hiccups),
+      // then the other model. Quota errors skip straight to the other model.
+      const attempts = [order[0], order[0], order[1]];
       let lastErr;
-      for (const model of order) {
+      let allQuota = true;
+      for (let i = 0; i < attempts.length; i++) {
+        const model = attempts[i];
+        if (i === 1 && (lastErr && isQuota(lastErr))) continue; // no point retrying an exhausted model
         try {
           return { ...(await ask(model, contents)), model, tier };
         } catch (err) {
           if (err instanceof BrainError) throw err;
           lastErr = err;
-          if (!isQuota(err)) break; // only fall back to the other model when this one is out of quota
+          if (!isQuota(err)) allQuota = false;
+          if (i === 0 && !isQuota(err)) await sleep(retryDelayMs);
         }
       }
-      if (isQuota(lastErr)) throw new BrainError('quota_exceeded', 'Free Gemini quota used up for now');
-      throw new BrainError('model_error', lastErr?.message ?? 'unknown model error');
+      if (allQuota) throw new BrainError('quota_exceeded', 'Free Gemini quota used up for now');
+      throw new BrainError('model_error', lastErr?.message ?? 'unknown model error', lastErr?.status);
     },
   };
 }

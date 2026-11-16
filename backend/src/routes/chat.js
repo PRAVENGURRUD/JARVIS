@@ -41,8 +41,8 @@ export function chatRoutes(brain) {
       res.json({ reply: { display: reply.display, speech: reply.speech, lang: reply.lang }, model: reply.model });
     } catch (err) {
       if (err instanceof BrainError) {
-        await logAction('chat_failed', { deviceId: req.device.id, reason: err.code });
-        if (err.code === 'model_error') console.error('[brain]', err.message);
+        await logAction('chat_failed', { deviceId: req.device.id, reason: err.code, status: err.status ?? null });
+        if (err.code === 'model_error') console.error('[brain]', err.status ?? '', String(err.message).slice(0, 300));
         const status = err.code === 'quota_exceeded' ? 429 : 503;
         return res.status(status).json({ error: err.code, reply: { ...FALLBACK[err.code], lang: 'en' } });
       }
