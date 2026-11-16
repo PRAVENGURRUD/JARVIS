@@ -126,7 +126,7 @@ JARVIS/
 
 ---
 
-## 6. Decisions I need from you before coding
+## 6. Decisions (answered 2026-11-16 — see PROGRESS.md)
 
 1. **Where does the backend run in Stage 1?**
    - **(A) Your PC + Tailscale (free private VPN).** The phone reaches your PC from anywhere, with no open ports. It's also the same setup as the Stage 2 home server. Downside: the PC must be on for JARVIS to answer. *(My recommendation.)*

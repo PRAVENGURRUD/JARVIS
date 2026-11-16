@@ -3,7 +3,7 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — planning.** No app or backend code yet. Waiting for Praveen's go-ahead on `docs/PHASE1_PLAN.md` and answers to its open decisions.
+**Phase 1 — step 1.1 done** (backend skeleton: Express, `/health`, helmet, rate limit, action log, tests). Step 1.0 (Flutter SDK install on Windows) in progress on Praveen's side.
 
 ## Phases
 - [ ] **Phase 1** — Wake word, background service, Tanglish voice chat ← *current*
@@ -15,15 +15,19 @@ Updated by Claude at the end of every session. Newest session at the top.
 ## Decisions made
 - 2026-11-16: Stack fixed as Flutter + Kotlin plugins (app), Node/Express (backend), Stage 1 free tools only (see `CLAUDE.md`).
 - 2026-11-16: Wake word = openWakeWord's pretrained "hey_jarvis" model, run on the phone with ONNX Runtime (no Picovoice key needed).
+- 2026-11-16: Backend runs on Praveen's Windows PC, bound to 127.0.0.1, exposed only to his devices via **Tailscale Serve** (HTTPS, no open ports). App must say clearly when the PC is off.
+- 2026-11-16: Reply voice = **Gemini TTS**, automatic fallback to Android built-in TTS when offline or quota is used up.
+- 2026-11-16: App ID = `com.praveen.jarvis`.
+- 2026-11-16: PC already has Node.js and Android Studio; Flutter SDK still to install.
 
 ## Open questions (need Praveen)
-See "Decisions I need from you" in `docs/PHASE1_PLAN.md`.
+- Gemini API key: Praveen creates it in Google AI Studio and puts it only in `backend/.env` (needed at step 1.3).
 
-## Known broken
-Nothing yet.
+## Known broken / to do later
+- Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
 
 ## Next step
-Praveen answers the open decisions → set up dev tools on Windows (Flutter SDK, Android Studio, Node LTS) → step 1.1 of the Phase 1 plan.
+Finish step 1.0 (Flutter SDK, `flutter doctor`, USB debugging, Tailscale on PC + phone) → step 1.2 (pairing + device-token auth).
 
 ---
 
@@ -31,4 +35,6 @@ Praveen answers the open decisions → set up dev tools on Windows (Flutter SDK,
 
 ### 2026-11-16 — Session 1
 - Read the master plan (`docs/JARVIS_Plan.pdf`), added it to the repo.
-- Created `CLAUDE.md`, `PROGRESS.md`, `.gitignore`, `docs/PHASE1_PLAN.md`.
+- Created `CLAUDE.md`, `PROGRESS.md`, `.gitignore`, `docs/PHASE1_PLAN.md`; Praveen pushed to GitHub.
+- Decisions: PC + Tailscale backend, Gemini TTS, app ID.
+- Step 1.1: backend skeleton in `backend/` — `npm test` passes (3 tests).
