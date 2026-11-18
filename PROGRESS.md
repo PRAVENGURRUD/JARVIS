@@ -3,7 +3,7 @@
 Updated by Claude at the end of every session. Newest session at the top.
 
 ## Current status
-**Phase 1 — steps 1.0–1.4 working on the real S24+ (2026-11-16).**
+**Phase 1 — steps 1.0–1.4 working on the real S24+ (updated 2026-11-18).** Voice replies now ~6 s (small model first, 15 s timeout). Voice picker in app (⚙🎙).
 - Text chat + **voice chat** (tap 🎤, speak English/Tamil/Tanglish, tap ■) through the private Tailscale tunnel (`https://pravengurru.taile513f9.ts.net`) to the backend on the PC → Gemini understands the audio and replies in Tanglish; reply spoken aloud. Voice replies take ~3–10 s.
 - Spoken voice is the phone's **Android TTS** (female, robotic) because **Gemini TTS returns "model not found" for Praveen's key** (tried gemini-3.8-flash-lite-tts, gemini-3.8-flash-tts, gemini-3.1-flash-tts-preview, gemini-2.5-flash-preview-tts + models.list). Backend switches TTS off for 30 min after a full failure so replies stay fast.
 - Backend: 23 tests pass. App: `flutter analyze` clean, 4 tests pass (before the last small edits — re-run).
@@ -36,11 +36,11 @@ Updated by Claude at the end of every session. Newest session at the top.
 - Windows console can't render Tamil script — `npm run chat` shows garbled (voice: ...) lines; phone shows it fine.
 - Action log is plain JSON lines in `backend/data/` (gitignored). Encrypt it in step 1.8 (security rule 3).
 
-## Next step (start here tomorrow)
-1. Run `npm run models` in `backend/` → see if the key has ANY TTS model. If yes, set `GEMINI_MODEL_TTS` in `.env`.
-2. Option A (Praveen to choose): add a voice picker in the app (flutter_tts `getVoices` → pick a male en-IN / ta-IN voice, save choice).
-3. Voice replies mostly came from the SMALL model (gemini-3.5-flash-lite) — the strong model (gemini-3.8-flash) failed or was too slow; one reply just echoed the question. Check backend console `[brain]` lines and the free-tier limits for 3.8-flash; consider `thinkingLevel: MINIMAL`.
-4. Then step 1.5: Kotlin foreground service + Samsung battery setup screen, then 1.6 wake word "Hey JARVIS".
+## Next step (start here next session)
+1. Choose with Praveen: A) Gemini natural voice — run `npm run models` in `backend/`, read the "TTS (voice) models" lines, set `GEMINI_MODEL_TTS` in `.env` if one exists; or B) step 1.5.
+2. Step 1.5: Kotlin foreground service ("JARVIS is listening" notification) + Samsung battery setup screen. Show folder layout + steps first, wait for OK.
+3. Then 1.6 wake word "Hey JARVIS" (openWakeWord via ONNX Runtime).
+4. Watch: "could not hear clearly" = silent recording (peak 0) when another app (e.g. screen recorder) holds the mic.
 
 Old next-step notes:
 Step 1.4: push-to-talk in the app (record audio → backend → Gemini understands audio) + speak replies with Gemini TTS (`gemini-3.8-flash-lite-tts`), Android TTS fallback.
