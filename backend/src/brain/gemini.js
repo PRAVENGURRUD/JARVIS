@@ -36,14 +36,15 @@ function parseReply(raw) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const isTimeout = (err) => err?.name === 'TimeoutError' || err?.name === 'AbortError' || /aborted|timed? ?out/i.test(err?.message ?? '');
 const isQuota = (err) => err?.status === 429 || /RESOURCE_EXHAUSTED|quota|rate limit/i.test(err?.message ?? '');
 
 /** Creates the brain. `client` can be swapped for a fake in tests. */
-export function createBrain({ client, models = config.models, retryDelayMs = 800 } = {}) {
+export function createBrain({ client, models = config.models, retryDelayMs = 800, timeoutMs = { text: 20000, audio: 15000 } } = {}) {
   let ai = client;
   const noThinkingCfg = new Set(); // models that rejected the thinking setting
 
-  async function ask(model, contents) {
+  async function ask(model, contents, limitMs) {
     if (!ai) {
       if (!config.geminiApiKey) throw new BrainError('not_configured', 'GEMINI_API_KEY missing in backend/.env');
       ai = new GoogleGenAI({ apiKey: config.geminiApiKey });
@@ -53,6 +54,8 @@ export function createBrain({ client, models = config.models, retryDelayMs = 800
       responseMimeType: 'application/json',
       responseJsonSchema: REPLY_SCHEMA,
       maxOutputTokens: 800,
+      // Give up on a slow model instead of keeping Praveen waiting; the next model is tried.
+      abortSignal: AbortSignal.timeout(limitMs),
     };
     // Short spoken replies don't need deep thinking; LOW makes answers much faster.
     if (!noThinkingCfg.has(model)) cfg.thinkingConfig = { thinkingLevel: 'LOW' };
@@ -63,6 +66,7 @@ export function createBrain({ client, models = config.models, retryDelayMs = 800
       if (cfg.thinkingConfig && err?.status === 400 && /think/i.test(err?.message ?? '')) {
         noThinkingCfg.add(model); // this model doesn't accept it: ask again without
         delete cfg.thinkingConfig;
+        cfg.abortSignal = AbortSignal.timeout(limitMs);
         const res = await ai.models.generateContent({ model, contents, config: cfg });
         return parseReply(res.text);
       }
@@ -72,25 +76,29 @@ export function createBrain({ client, models = config.models, retryDelayMs = 800
 
   return {
     async chat({ text = '', audio = null, history = [] }) {
-      // Voice: always the strong model first — understanding mixed Tamil-English speech is the hard part.
-      const tier = audio ? 'strong' : pickTier(text);
+      // Voice: the small fast model first — in tests it understood Tanglish speech well in ~3 s,
+      // while the big model stalled for 20–50 s on audio. The big model is the backup.
+      const tier = audio ? 'small' : pickTier(text);
       const order = tier === 'strong' ? [models.strong, models.small] : [models.small, models.strong];
       const contents = toContents(history, text, audio);
+      const limitMs = audio ? timeoutMs.audio : timeoutMs.text;
       // Try: first model, the same model once more after a short pause (brief Google hiccups),
-      // then the other model. Quota errors skip straight to the other model.
+      // then the other model. Quota errors and timeouts skip straight to the other model.
       const attempts = [order[0], order[0], order[1]];
       let lastErr;
       let allQuota = true;
       for (let i = 0; i < attempts.length; i++) {
         const model = attempts[i];
-        if (i === 1 && (lastErr && isQuota(lastErr))) continue; // no point retrying an exhausted model
+        if (i === 1 && lastErr && (isQuota(lastErr) || isTimeout(lastErr))) continue;
+        const t0 = Date.now();
         try {
-          return { ...(await ask(model, contents)), model, tier };
+          return { ...(await ask(model, contents, limitMs)), model, tier };
         } catch (err) {
           if (err instanceof BrainError) throw err;
           lastErr = err;
+          console.error(`[brain] ${model} failed after ${Date.now() - t0} ms:`, isTimeout(err) ? 'timeout' : (err?.status ?? ''), String(err?.message ?? '').slice(0, 150));
           if (!isQuota(err)) allQuota = false;
-          if (i === 0 && !isQuota(err)) await sleep(retryDelayMs);
+          if (i === 0 && !isQuota(err) && !isTimeout(err)) await sleep(retryDelayMs);
         }
       }
       if (allQuota) throw new BrainError('quota_exceeded', 'Free Gemini quota used up for now');

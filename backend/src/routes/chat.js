@@ -94,7 +94,11 @@ export function chatRoutes(brain, tts) {
 
   r.post('/chat/voice', express.json({ limit: '5mb' }), async (req, res, next) => {
     const input = validateVoice(req.body);
-    if (!input) return res.status(400).json({ error: 'bad_request' });
+    if (!input) {
+      const a = req.body?.audio;
+      await logAction('voice_chat_rejected', { deviceId: req.device.id, mimeType: a?.mimeType ?? null, b64Len: a?.data?.length ?? null });
+      return res.status(400).json({ error: 'bad_request' });
+    }
     answer(req, res, input, 'voice_chat').catch(next);
   });
 

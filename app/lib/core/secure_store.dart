@@ -22,6 +22,11 @@ class SecureStore {
     await _storage.write(key: _kToken, value: s.token);
   }
 
+  /// Small app settings (e.g. chosen voice). Not secret, but kept in the same locked store.
+  Future<String?> readSetting(String key) => _storage.read(key: 'setting_$key');
+  Future<void> writeSetting(String key, String? value) =>
+      value == null ? _storage.delete(key: 'setting_$key') : _storage.write(key: 'setting_$key', value: value);
+
   Future<void> clear() async {
     await _storage.delete(key: _kUrl);
     await _storage.delete(key: _kToken);

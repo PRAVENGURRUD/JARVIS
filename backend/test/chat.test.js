@@ -134,7 +134,7 @@ test('/chat/voice sends audio to the brain and returns what was heard', async ()
   assert.equal(res.status, 200);
   const last = calls.at(-1);
   assert.equal(last.contents.at(-1).parts[0].inlineData.mimeType, 'audio/wav');
-  assert.equal(last.model, 'strong-model', 'voice uses the strong model first');
+  assert.equal(last.model, 'small-model', 'voice uses the fast model first');
   const body = await res.json();
   assert.equal(typeof body.heard, 'string');
 });
@@ -165,4 +165,18 @@ test('/chat/voice: a silent WAV is caught before calling Gemini', async () => {
   assert.equal(res.status, 200);
   assert.match((await res.json()).reply.display, /couldn't hear/);
   assert.equal(calls.length, n, 'Gemini not called for silence');
+});
+
+test('slow model times out and the other model answers', async () => {
+  const slow = { models: { async generateContent(req) {
+    if (req.model === 'slow') {
+      return new Promise((_, rej) => req.config.abortSignal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))));
+    }
+    return { text: JSON.stringify({ display: 'ok', speech: 'ok', lang: 'en' }) };
+  } } };
+  const b = createBrain({ client: slow, models: { small: 'slow', strong: 'fast' }, retryDelayMs: 1, timeoutMs: { text: 50, audio: 50 } });
+  const t0 = Date.now();
+  const r = await b.chat({ text: 'hi' });
+  assert.equal(r.model, 'fast');
+  assert.ok(Date.now() - t0 < 1000, 'did not wait for the slow model twice');
 });

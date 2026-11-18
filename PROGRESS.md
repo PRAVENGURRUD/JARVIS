@@ -51,6 +51,12 @@ How to run (see `scripts/`): `scripts\start-jarvis.ps1` (backend + QR + `flutter
 
 ## Session log
 
+### 2026-11-18 — Day 2
+- Voice picker in app (⚙🎙 icon): lists phone English/Tamil voices, tap to hear, pitch + speed sliders, saved in secure storage. Phone built OK, `flutter analyze` clean.
+- `npm run models`: text models incl. gemini-3.5/3.6/3.7/3.8-flash, gemini-4-*; TTS section not yet seen (scrolled off).
+- Voice replies took 28–56 s (big model gemini-3.8-flash stalls on audio, then small model answered). Fix: voice → small model first, 15 s per-model timeout (20 s text), timeouts skip same-model retry, failed attempts logged to console with ms. Persona: if "heard" is filled, answer — don't ask to repeat. 400 on /chat/voice now logged. 24 backend tests pass.
+- 4 voice messages showed "could not hear clearly" with nothing in the action log — cause unknown (watch `voice_chat_rejected` and backend console).
+
 ### 2026-11-16 — end of day 1
 - Voice tested on phone: audio levels healthy (peak 42–95 %), Gemini transcribes Tanglish correctly ("Tamil puriyuma machi thirupi reply panra").
 - Fixes today: hold-to-talk → tap-to-talk; "(not clear)" label was shown for ANY error → now "(not sent — PC not reachable)" vs "(JARVIS could not hear it clearly)"; loudness check (numbers only) + silent-recording guard; TTS model discovery + 30-min off switch; Gemini `thinkingLevel: LOW`; per-reply timing in action log; phone voice timeout 90 s; TTS capped at 20 s.

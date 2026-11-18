@@ -50,7 +50,7 @@ class _JarvisAppState extends State<JarvisApp> {
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _session == null
               ? PairingScreen(api: _api, store: _store, onPaired: (s) => setState(() => _session = s))
-              : ChatScreen(api: _api, session: _session!, onUnpaired: _unpair),
+              : ChatScreen(api: _api, store: _store, session: _session!, onUnpaired: _unpair),
     );
   }
 }

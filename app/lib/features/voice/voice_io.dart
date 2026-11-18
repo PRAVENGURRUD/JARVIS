@@ -7,6 +7,45 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import '../../core/secure_store.dart';
+
+/// A voice installed on the phone (from Samsung's or Google's speech engine).
+class PhoneVoice {
+  const PhoneVoice(this.name, this.locale, {this.online = false});
+  final String name;
+  final String locale;
+  final bool online; // needs internet
+  Map<String, String> toMap() => {'name': name, 'locale': locale};
+}
+
+/// Which phone voices JARVIS uses, and how it sounds.
+class VoiceSettings {
+  VoiceSettings({this.english, this.tamil, this.pitch = 0.85, this.rate = 0.5});
+  PhoneVoice? english;
+  PhoneVoice? tamil;
+  double pitch; // 1.0 = normal; lower sounds deeper
+  double rate; // 0.5 = normal speed
+
+  static Future<VoiceSettings> load(SecureStore store) async {
+    PhoneVoice? v(String? name, String? locale) => (name != null && locale != null) ? PhoneVoice(name, locale) : null;
+    return VoiceSettings(
+      english: v(await store.readSetting('en_voice'), await store.readSetting('en_locale')),
+      tamil: v(await store.readSetting('ta_voice'), await store.readSetting('ta_locale')),
+      pitch: double.tryParse(await store.readSetting('pitch') ?? '') ?? 0.85,
+      rate: double.tryParse(await store.readSetting('rate') ?? '') ?? 0.5,
+    );
+  }
+
+  Future<void> save(SecureStore store) async {
+    await store.writeSetting('en_voice', english?.name);
+    await store.writeSetting('en_locale', english?.locale);
+    await store.writeSetting('ta_voice', tamil?.name);
+    await store.writeSetting('ta_locale', tamil?.locale);
+    await store.writeSetting('pitch', pitch.toStringAsFixed(2));
+    await store.writeSetting('rate', rate.toStringAsFixed(2));
+  }
+}
+
 /// Records your voice while you hold the mic button.
 /// 16 kHz mono WAV: small enough to send quickly, clear enough for Gemini to understand Tanglish.
 class VoiceRecorder {
@@ -53,6 +92,36 @@ class VoiceSpeaker {
 
   final AudioPlayer _player = AudioPlayer();
   final FlutterTts _tts = FlutterTts();
+  VoiceSettings settings = VoiceSettings();
+
+  /// All voices on the phone for English and Tamil.
+  Future<List<PhoneVoice>> voices() async {
+    final raw = await _tts.getVoices;
+    final out = <PhoneVoice>[];
+    if (raw is List) {
+      for (final v in raw) {
+        if (v is! Map) continue;
+        final name = v['name']?.toString();
+        final locale = v['locale']?.toString();
+        if (name == null || locale == null) continue;
+        final l = locale.toLowerCase();
+        if (!l.startsWith('en') && !l.startsWith('ta')) continue;
+        final online = v['network_required']?.toString() == '1' || v['network_required'] == true;
+        out.add(PhoneVoice(name, locale, online: online));
+      }
+    }
+    out.sort((a, b) => '${a.locale}${a.name}'.compareTo('${b.locale}${b.name}'));
+    return out;
+  }
+
+  /// Speaks with one specific phone voice (for the "test" button).
+  Future<void> preview(PhoneVoice v, String text) async {
+    await stop();
+    await _tts.setVoice(v.toMap());
+    await _tts.setPitch(settings.pitch);
+    await _tts.setSpeechRate(settings.rate);
+    await _tts.speak(text);
+  }
 
   Future<void> stop() async {
     await _player.stop();
@@ -73,8 +142,15 @@ class VoiceSpeaker {
         // fall through to Android voice
       }
     }
-    // Tamil voice for Tamil/Tanglish (the speech text has Tamil words in Tamil script), Indian English otherwise.
-    await _tts.setLanguage(lang == 'en' ? 'en-IN' : 'ta-IN');
+    // Tamil voice for Tamil/Tanglish (the speech text has Tamil words in Tamil script), English otherwise.
+    final chosen = lang == 'en' ? settings.english : settings.tamil;
+    if (chosen != null) {
+      await _tts.setVoice(chosen.toMap());
+    } else {
+      await _tts.setLanguage(lang == 'en' ? 'en-IN' : 'ta-IN');
+    }
+    await _tts.setPitch(settings.pitch);
+    await _tts.setSpeechRate(settings.rate);
     await _tts.speak(speech);
   }
 

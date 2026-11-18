@@ -6,11 +6,13 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/api_client.dart';
 import '../../core/secure_store.dart';
 import '../voice/voice_io.dart';
+import '../voice/voice_settings_screen.dart';
 
 /// Chat with JARVIS: type, or TAP the mic, talk, and tap again to send. Replies are spoken aloud.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key, required this.api, required this.session, required this.onUnpaired});
+  const ChatScreen({super.key, required this.api, required this.store, required this.session, required this.onUnpaired});
   final ApiClient api;
+  final SecureStore store;
   final Session session;
   final VoidCallback onUnpaired;
 
@@ -31,6 +33,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _ticker;
   int _seconds = 0;
   static const _maxSeconds = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    VoiceSettings.load(widget.store).then((v) => _speaker.settings = v);
+  }
 
   @override
   void dispose() {
@@ -174,6 +182,13 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         title: const Text('JARVIS'),
         actions: [
+          IconButton(
+            tooltip: 'Choose JARVIS voice',
+            icon: const Icon(Icons.settings_voice),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => VoiceSettingsScreen(speaker: _speaker, store: widget.store)),
+            ),
+          ),
           IconButton(
             tooltip: _speakReplies ? 'Mute replies' : 'Speak replies',
             icon: Icon(_speakReplies ? Icons.volume_up : Icons.volume_off),
